@@ -23,9 +23,9 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 #target_include_directories(${PROJECT_NAME} PUBLIC )
 # Compiler Flags Debug(-g -O0) Release(-O3)
-set(OPT_FLAG -Og -g -mavx2)
+set(OPT_FLAG -O2 -g -mavx2)
 target_compile_options(
 	${PROJECT_NAME} PUBLIC ${OPT_FLAG}
 	-Wall -Wextra -Wshadow -Wfloat-conversion -Wconversion
 )
-target_link_libraries(${PROJECT_NAME} PUBLIC)
+target_link_libraries(${PROJECT_NAME} PRIVATE "-l:libm.a")

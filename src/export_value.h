@@ -25,6 +25,26 @@ inline std::string export_value(const double& value) {
 }
 
 template<>
+inline std::string export_value(const uint64_t& value) {
+	std::string ret;
+	char buf[256];
+	std::memset(buf, '\0', sizeof(buf));
+	snprintf(buf, sizeof(buf), "UINT64_C(0x%016" PRIX64 ")", value);
+	ret.assign(buf);
+	return ret;
+}
+
+template<>
+inline std::string export_value(const int64_t& value) {
+	std::string ret;
+	char buf[256];
+	std::memset(buf, '\0', sizeof(buf));
+	snprintf(buf, sizeof(buf), "INT64_C(0x%016" PRIX64 ")", value);
+	ret.assign(buf);
+	return ret;
+}
+
+template<>
 inline std::string export_value(const float& value) {
 	std::string ret;
 	char buf[256];
@@ -33,5 +53,26 @@ inline std::string export_value(const float& value) {
 	ret.assign(buf);
 	return ret;
 }
+
+template<>
+inline std::string export_value(const uint32_t& value) {
+	std::string ret;
+	char buf[256];
+	std::memset(buf, '\0', sizeof(buf));
+	snprintf(buf, sizeof(buf), "UINT32_C(0x%08" PRIX32 ")", value);
+	ret.assign(buf);
+	return ret;
+}
+
+template<>
+inline std::string export_value(const int32_t& value) {
+	std::string ret;
+	char buf[256];
+	std::memset(buf, '\0', sizeof(buf));
+	snprintf(buf, sizeof(buf), "INT32_C(0x%08" PRIX32 ")", value);
+	ret.assign(buf);
+	return ret;
+}
+
 
 #endif /* EXPORT_VALUE_H */

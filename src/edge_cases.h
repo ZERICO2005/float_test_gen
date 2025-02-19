@@ -4,15 +4,29 @@
 #include <cmath>
 #include <limits>
 #include <array>
+#include <cfenv>
+
+template<typename T>
+static inline T ieee_nextafter(T x, T y) {
+	if (x == 0.0) {
+        if (y == 0.0) {
+            // special case where `+0.0 --> -0.0` and `-0.0 --> +0.0`
+            return y;
+        }
+        feraiseexcept(FE_INEXACT | FE_UNDERFLOW);
+        return std::copysign(std::numeric_limits<T>::denorm_min(), y);
+    }
+	return std::nextafter(x, y);
+}
 
 template<typename T>
 static inline T nextup(T x) {
-	return std::nextafter(x, std::numeric_limits<T>::infinity());
+	return ieee_nextafter(x, std::numeric_limits<T>::infinity());
 }
 
 template<typename T>
 static inline T nextdown(T x) {
-	return std::nextafter(x, -std::numeric_limits<T>::infinity());
+	return ieee_nextafter(x, -std::numeric_limits<T>::infinity());
 }
 
 template<typename T>

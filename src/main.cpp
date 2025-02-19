@@ -34,6 +34,7 @@ struct float_name {
 	static const char* abi_type;
 	static const char* int_type;
 	static const char* int_literal;
+	static size_t type_bits;
 };
 
 template<> const char* float_name<float>::fX = "f32";
@@ -41,12 +42,14 @@ template<> const char* float_name<float>::fpX = "fp32";
 template<> const char* float_name<float>::abi_type = "float";
 template<> const char* float_name<float>::int_type = "uint32_t";
 template<> const char* float_name<float>::int_literal = "UINT32_C";
+template<> size_t float_name<float>::type_bits = 32;
 
 template<> const char* float_name<double>::fX = "f64";
 template<> const char* float_name<double>::fpX = "fp64";
 template<> const char* float_name<double>::abi_type = "long double";
 template<> const char* float_name<double>::int_type = "uint64_t";
 template<> const char* float_name<double>::int_literal = "UINT64_C";
+template<> size_t float_name<double>::type_bits = 64;
 
 template <typename T>
 inline void generate_ilogb_test(
@@ -238,7 +241,7 @@ inline void generate_nextafter_test(
 		input[i] += export_value(target[i]);
 		input[i] += "}";
 
-		T result = std::nextafter(values[i], target[i]);
+		T result = ieee_nextafter(values[i], target[i]);
 		output[i] = export_value(result);
 	}
 }
@@ -324,6 +327,38 @@ inline void generate_sqrt_test(
 }
 
 template <typename T>
+inline void generate_float_to_f32_test(
+	std::vector<std::string>& input,
+	std::vector<std::string>& output
+) {
+	assert(input.size() == output.size());
+	std::vector<T> values(input.size());
+	std::copy(edge_cases<T>.begin(), edge_cases<T>.end(), values.begin());
+	random_gen_basic(values, edge_cases<T>.size());
+	for (size_t i = 0; i < input.size(); i++) {
+		input[i] = export_value(values[i]);
+		float result = static_cast<float>(values[i]);
+		output[i] = export_value(result);
+	}
+}
+
+template <typename T>
+inline void generate_float_to_f64_test(
+	std::vector<std::string>& input,
+	std::vector<std::string>& output
+) {
+	assert(input.size() == output.size());
+	std::vector<T> values(input.size());
+	std::copy(edge_cases<T>.begin(), edge_cases<T>.end(), values.begin());
+	random_gen_basic(values, edge_cases<T>.size());
+	for (size_t i = 0; i < input.size(); i++) {
+		input[i] = export_value(values[i]);
+		double result = static_cast<double>(values[i]);
+		output[i] = export_value(result);
+	}
+}
+
+template <typename T>
 inline void generate_modf_test(
 	std::vector<std::string>& input,
 	std::vector<std::string>& output
@@ -361,6 +396,133 @@ inline void generate_rounding_test(
 		output[i] += export_value(std::ceil(values[i]));
 		output[i] += ", ";
 		output[i] += export_value(std::round(values[i]));
+		output[i] += "}";
+	}
+}
+
+template <typename T>
+inline void generate_float_to_integer_test(
+	std::vector<std::string>& input,
+	std::vector<std::string>& output
+) {
+	assert(input.size() == output.size());
+	std::vector<T> values(input.size());
+	#if 0
+		std::vector<T> integer_edge_cases = {
+			static_cast<T>(UINT32_MAX),
+			static_cast<T>(INT32_MAX),
+			static_cast<T>(INT32_MIN),
+			static_cast<T>(UINT64_MAX),
+			static_cast<T>(INT64_MAX),
+			static_cast<T>(INT64_MIN),
+		};
+		std::copy(edge_cases<T>.begin(), edge_cases<T>.end(), values.begin());
+		std::copy(
+			integer_edge_cases.begin(), integer_edge_cases.end(),
+			values.begin() + edge_cases<T>.size()
+		);
+
+		std::random_device rd;
+		std::mt19937_64 gen(rd());
+		std::uniform_real_distribution<T> dist_low(static_cast<T>(-0x1.0p+1), static_cast<T>(+0x1.0p+1));
+		std::uniform_real_distribution<T> dist_u30(static_cast<T>(-0x1.0p+30), static_cast<T>(+0x1.0p+30));
+		std::uniform_real_distribution<T> dist_u60(static_cast<T>(-0x1.0p+60), static_cast<T>(+0x1.0p+60));
+		std::uniform_real_distribution<T> dist_all;
+		for (size_t i = edge_cases<T>.size() + integer_edge_cases.size(); i < input.size(); i++) {
+			switch (i % 4) {
+				case 0: values[i] = dist_low(gen); break;
+				case 1: values[i] = dist_u30(gen); break;
+				case 2: values[i] = dist_u60(gen); break;
+				case 3: values[i] = dist_all(gen); break;
+			}
+		}
+	#else
+		std::random_device rd;
+		std::mt19937_64 gen(rd());
+		std::uniform_real_distribution<T> dist_u30(static_cast<T>(-0x1.0p+30), static_cast<T>(+0x1.0p+30));
+
+		std::vector<T> integer_edge_cases = {
+			static_cast<T>(0.0),
+			static_cast<T>(0.5),
+			static_cast<T>(1.0),
+			static_cast<T>(1.5),
+			static_cast<T>(2.0),
+			static_cast<T>(2.5),
+			static_cast<T>(-0.0),
+			static_cast<T>(-0.5),
+			static_cast<T>(-1.0),
+			static_cast<T>(-1.5),
+			static_cast<T>(-2.0),
+			static_cast<T>(-2.5),
+		};
+		std::copy(integer_edge_cases.begin(), integer_edge_cases.end(), values.begin());
+
+		for (size_t i = integer_edge_cases.size(); i < input.size(); i++) {
+			values[i] = dist_u30(gen);
+		}
+	#endif
+	for (size_t i = 0; i < input.size(); i++) {
+		input[i] = export_value(values[i]);
+		output[i] = "{";
+		output[i] += export_value((uint32_t)(values[i]));
+		output[i] += ", ";
+		output[i] += export_value((int32_t)(values[i]));
+		output[i] += ", ";
+		output[i] += export_value((uint64_t)(values[i]));
+		output[i] += ", ";
+		output[i] += export_value((int64_t)(values[i]));
+		output[i] += "}";
+	}
+}
+
+template <typename T>
+inline void generate_float_from_integer_test(
+	std::vector<std::string>& input,
+	std::vector<std::string>& output
+) {
+	assert(input.size() == output.size());
+	std::vector<uint32_t> input_u32(input.size());
+	std::vector<uint64_t> input_u64(input.size());
+
+	size_t offset = 0;
+	input_u32[offset] = 0;
+	input_u64[offset] = 0;
+	offset++;
+	input_u32[offset] = 1;
+	input_u64[offset] = 1;
+	offset++;
+	input_u32[offset] = std::numeric_limits<uint32_t>::max();
+	input_u64[offset] = std::numeric_limits<uint64_t>::max();
+	offset++;
+	input_u32[offset] = std::numeric_limits<int32_t>::max();
+	input_u64[offset] = std::numeric_limits<int64_t>::max();
+	offset++;
+	input_u32[offset] = static_cast<uint32_t>(std::numeric_limits<int32_t>::min());
+	input_u64[offset] = static_cast<uint64_t>(std::numeric_limits<int64_t>::min());
+	offset++;
+
+	std::random_device rd;
+	std::mt19937_64 gen(rd());
+	std::uniform_int_distribution<uint64_t> dist;
+	for (size_t i = offset; i < input.size(); i++) {
+		input_u32[i] = static_cast<uint32_t>(dist(gen));
+		input_u64[i] = static_cast<uint64_t>(dist(gen));
+	}
+
+	for (size_t i = 0; i < input.size(); i++) {
+		input[i] = "{";
+		input[i] += export_value(input_u32[i]);
+		input[i] += ", ";
+		input[i] += export_value(input_u64[i]);
+		input[i] += "}";
+		output[i] = "{";
+		output[i] += export_value(static_cast<T>(input_u32[i]));
+		output[i] += ", ";
+		output[i] += export_value(static_cast<T>(static_cast<int32_t>(input_u32[i])));
+		output[i] += ", ";
+		output[i] += export_value(static_cast<T>(input_u64[i]));
+		output[i] += ", ";
+		output[i] += export_value(static_cast<T>(static_cast<int64_t>(input_u64[i])));
 		output[i] += "}";
 	}
 }
@@ -513,6 +675,36 @@ void generate_all_tests(void) {
 			2 * sizeof(T)
 		));
 	}
+	if (float_name<T>::type_bits != 32) {
+		Test_List.push_back(Test_Gen<T>(
+			generate_float_to_f32_test<T>,
+			"to_f32_LUT",
+			float_int_type,
+			"uint32_t",
+			"#include <stdint.h>",
+			sizeof(T) + sizeof(float)
+		));
+	}
+	if (float_name<T>::type_bits != 64) {
+		Test_List.push_back(Test_Gen<T>(
+			generate_float_to_f64_test<T>,
+			"to_f64_LUT",
+			float_int_type,
+			"uint64_t",
+			"#include <stdint.h>",
+			sizeof(T) + sizeof(double)
+		));
+	}
+	{
+		Test_List.push_back(Test_Gen<T>(
+			generate_sqrt_test<T>,
+			"sqrt_LUT",
+			float_int_type,
+			float_int_type,
+			"#include <stdint.h>",
+			2 * sizeof(T)
+		));
+	}
 	{
 		std::string fma_input_type = "struct { ";
 		fma_input_type += float_int_type;
@@ -560,6 +752,39 @@ void generate_all_tests(void) {
 			rounding_output_type.c_str(),
 			"#include <stdint.h>",
 			4 * sizeof(T)
+		));
+	}
+	{
+		std::string float_to_integer_output_type =
+			"struct { uint32_t u32; int32_t i32; uint64_t u64; int64_t i64; }";
+		Test_List.push_back(Test_Gen<T>(
+			generate_float_to_integer_test<T>,
+			"to_integer_LUT",
+			float_int_type,
+			float_to_integer_output_type.c_str(),
+			"#include <stdint.h>",
+			sizeof(T) + 2 * sizeof(uint32_t) + 2 * sizeof(uint64_t)
+		));
+	}
+	{
+		std::string float_from_integer_input_type =
+			"struct { uint32_t u32; uint64_t u64; }";
+		std::string float_from_integer_output_type = "struct { ";
+		float_from_integer_output_type += float_int_type;
+		float_from_integer_output_type += " fu32; ";
+		float_from_integer_output_type += float_int_type;
+		float_from_integer_output_type += " fi32; ";
+		float_from_integer_output_type += float_int_type;
+		float_from_integer_output_type += " fu64; ";
+		float_from_integer_output_type += float_int_type;
+		float_from_integer_output_type += " fi64; }";
+		Test_List.push_back(Test_Gen<T>(
+			generate_float_from_integer_test<T>,
+			"from_integer_LUT",
+			float_from_integer_input_type.c_str(),
+			float_from_integer_output_type.c_str(),
+			"#include <stdint.h>",
+			4 * sizeof(T) + sizeof(uint32_t) + sizeof(uint64_t)
 		));
 	}
 
